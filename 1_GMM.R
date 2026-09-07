@@ -14,7 +14,7 @@ POP = read_xlsx("Data/ND/POPTHM.xlsx",sheet = 2)
 ret = read_xlsx("Data/ND/EWR_VWR.xlsx")
 
 ##
-ret = ret %>% mutate(observation_date = floor_date(date, unit = "month")) %>% select(-date)
+ret = ret %>% mutate(observation_date = floor_date(date, unit = "month")) %>% dplyr::select(-date)
 
 data <- real_NDcons_quantity %>%
   left_join(
@@ -83,7 +83,7 @@ for(j in tempp){
   }
   ##
   X <- data %>%
-    select(
+    dplyr::select(
       cons_growth,
       real_return_ew,
       all_of(z_cols)
@@ -106,13 +106,19 @@ for(j in tempp){
     u * Z
   }
   
+  Tn <- nrow(X)
+  L <- round(Tn^(1/3))
+             
   fit <- gmm(
     g = obj_func,
     x = X,
     t0 = c(-1, 0.995),
-    type = "twoStep",
+    type = "iterative",
     wmatrix = "optimal",
-    vcov = "MDS",
+    vcov = "HAC",
+    kernel = "Bartlett",
+    bw = L + 1,
+    prewhite = FALSE,
     centeredVcov = FALSE
   )
   
@@ -147,7 +153,7 @@ for(j in tempp){
   
   ##
   X <- data %>%
-    select(
+    dplyr::select(
       cons_growth,
       real_return_vw,
       all_of(z_cols)
@@ -170,14 +176,27 @@ for(j in tempp){
     u * Z
   }
   
+  Tn <- nrow(X)
+  L <- round(Tn^(1/3))
+  
   fit <- gmm(
     g = obj_func,
     x = X,
     t0 = c(-1, 0.995),
-    type = "twoStep",
+    
+    type = "iterative",
     wmatrix = "optimal",
-    vcov = "MDS",
-    centeredVcov = FALSE
+    
+    vcov = "HAC",
+    kernel = "Bartlett",
+    bw = L + 1,
+    prewhite = FALSE,
+    centeredVcov = FALSE,
+    
+    crit = 1e-4,
+    itermax = 1000,
+    
+    method = "Nelder-Mead"
   )
   
   
@@ -197,8 +216,7 @@ for(j in tempp){
 
 final = rbind(res,res2)
 
-write_xlsx(final, "Results/Table1_ND.xlsx")
-rm(list=ls())
+write_xlsx(final, "Results/Table1_ND_iter.xlsx")
 
 ##----------------------------------
 ## NDS_GMM Table 1
@@ -211,7 +229,7 @@ price = read_xlsx("Data/NDS/PCEPI.xlsx",sheet = 2)
 POP = read_xlsx("Data/NDS/POPTHM.xlsx",sheet = 2)
 ret = read_xlsx("Data/NDS/EWR_VWR.xlsx")
 
-ret = ret %>% mutate(observation_date = floor_date(date, unit = "month")) %>% select(-date)
+ret = ret %>% mutate(observation_date = floor_date(date, unit = "month")) %>% dplyr::select(-date)
 
 data = left_join(nominal_ND, nominal_S, by = "observation_date")
 data = data %>% left_join(price, by = "observation_date") %>%
@@ -249,7 +267,7 @@ for(j in tempp){
   }
   ##
   X <- data %>%
-    select(
+    dplyr::select(
       cons_growth,
       real_return_ew,
       all_of(z_cols)
@@ -272,14 +290,27 @@ for(j in tempp){
     u * Z
   }
   
+  Tn <- nrow(X)
+  L <- round(Tn^(1/3))
+  
   fit <- gmm(
     g = obj_func,
     x = X,
     t0 = c(-1, 0.995),
-    type = "twoStep",
+    
+    type = "iterative",
     wmatrix = "optimal",
-    vcov = "MDS",
-    centeredVcov = FALSE
+    
+    vcov = "HAC",
+    kernel = "Bartlett",
+    bw = L + 1,
+    prewhite = FALSE,
+    centeredVcov = FALSE,
+    
+    crit = 1e-4,
+    itermax = 1000,
+    
+    method = "Nelder-Mead"
   )
   
   temp = data.frame(Cons = "NDS",Return = "EWR",
@@ -313,7 +344,7 @@ for(j in tempp){
   
   ##
   X <- data %>%
-    select(
+    dplyr::select(
       cons_growth,
       real_return_vw,
       all_of(z_cols)
@@ -340,13 +371,14 @@ for(j in tempp){
     g = obj_func,
     x = X,
     t0 = c(-1, 0.995),
-    type = "twoStep",
+    type = "iterative",
     wmatrix = "optimal",
-    vcov = "MDS",
+    vcov = "HAC",
+    kernel = "Bartlett",
+    prewhite = FALSE,
     centeredVcov = FALSE
   )
-  
-  
+
   tempy = data.frame(Cons = "NDS",Return = "VWR",  
                      alpha = round(summary(fit)$coefficients[1, 1],3),
                      alpha_se = round(summary(fit)$coefficients[1, 2],3),
